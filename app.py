@@ -12,29 +12,29 @@ import threading
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Replace with your KaidoServer endpoint
-KAIDO_SERVER_URL = "https://kaidoserver-25i1.onrender.com"
-
 # Crypto symbols you want to track
-TRACKED_SYMBOLS = ["DOGE", "SOL", "ETH", "BTC"]
+TRACKED_SYMBOLS = ["BTC", "ETH", "SOL", "DOGE", "LTC", "XRP", "ADA", "SHIB"]
 
 live_prices = {}
 
 def fetch_live_prices():
-    """Fetch live prices from KaidoServer and update live_prices dict."""
+    """Fetch live prices from Coinbase and update live_prices dict."""
     global live_prices
-    try:
-        response = requests.get(KAIDO_SERVER_URL)
-        if response.status_code == 200:
-            data = response.json()
-            updated_prices = {}
-            for symbol in TRACKED_SYMBOLS:
-                if symbol in data:
-                    updated_prices[symbol] = data[symbol]
-            live_prices = updated_prices
-            socketio.emit('update_prices', live_prices)
-    except Exception as e:
-        print(f"Error fetching prices: {e}")
+    updated_prices = {}
+    for symbol in TRACKED_SYMBOLS:
+        try:
+            url = f"https://api.coinbase.com/v2/prices/{symbol}-USD/spot"
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                price = data["data"]["amount"]
+                updated_prices[symbol] = float(price)
+            else:
+                print(f"Failed to fetch {symbol}: {response.status_code}")
+        except Exception as e:
+            print(f"Error fetching {symbol}: {e}")
+    live_prices = updated_prices
+    socketio.emit('update_prices', live_prices)
 
 def background_task():
     """Background task to fetch live prices every 5 seconds."""
