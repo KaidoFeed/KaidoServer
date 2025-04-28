@@ -1,68 +1,62 @@
-import os
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, render_template
+from flask import Flask, render_template, send_from_directory
 from flask_socketio import SocketIO
 import requests
-import time
-import threading
+import logging
+import os
 
-# Create Flask app
-app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
-# Cryptos to track
-TRACKED_SYMBOLS = ["BTC", "ETH", "SOL", "DOGE", "LTC", "XRP", "ADA", "SHIB"]
+app = Flask(__name__, static_folder='static')
+socketio = SocketIO(app)
 
-# Mapping for Coinbase API
-COINBASE_MAPPING = {
-    "BTC": "BTC-USD",
-    "ETH": "ETH-USD",
-    "SOL": "SOL-USD",
-    "DOGE": "DOGE-USD",
-    "LTC": "LTC-USD",
-    "XRP": "XRP-USD",
-    "ADA": "ADA-USD",
-    "SHIB": "SHIB-USD",
-}
+# List of cryptocurrency symbols to fetch
+SYMBOLS = ["BTC", "ETH", "SOL", "DOGE", "LTC", "XRP", "ADA", "SHIB"]
 
-live_prices = {}
+thread = None  # Background thread reference
 
-def fetch_live_prices():
-    """Fetch live prices from Coinbase API."""
-    global live_prices
-    updated_prices = {}
-
-    for symbol, pair in COINBASE_MAPPING.items():
-        try:
-            url = f"https://api.coinbase.com/v2/prices/{pair}/spot"
-            response = requests.get(url)
-            if response.status_code == 200:
-                price = float(response.json()['data']['amount'])
-                updated_prices[symbol] = price
-            else:
-                print(f"Error fetching {symbol}: {response.status_code}")
-        except Exception as e:
-            print(f"Error fetching {symbol}: {e}")
-
-    if updated_prices:
-        live_prices.update(updated_prices)
-        socketio.emit('update_prices', live_prices)
-
-def background_task():
-    """Background task fetching live prices every 5 seconds."""
+def fetch_prices():
+    """Background thread function to fetch crypto prices and emit via Socket.IO."""
+    session = requests.Session()
     while True:
-        fetch_live_prices()
-        time.sleep(5)
+        prices = {}
+        for symbol in SYMBOLS:
+            try:
+                url = f"https://api.coinbase.com/v2/prices/{symbol}-USD/spot"
+                response = session.get(url, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                prices[symbol] = data.get("data", {}).get("amount")
+            except Exception as e:
+                logging.error(f"Error fetching price for {symbol}: {e}")
+                prices[symbol] = "N/A"
+        # Emit the prices to all connected clients
+        socketio.emit('update_prices', prices)
+        # Pause for 5 seconds before the next fetch
+        socketio.sleep(5)
+
+@socketio.on('connect')
+def handle_connect():
+    """Event handler for new client connections."""
+    global thread
+    if thread is None:
+        # Start the background price fetching thread
+        thread = socketio.start_background_task(fetch_prices)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    """Serve the index HTML to the client."""
+    try:
+        # Attempt to render from templates folder
+        return render_template('index.html')
+    except:
+        # Fallback: serve index.html from current directory
+        return send_from_directory('.', 'index.html')
 
-# Start background fetch
-threading.Thread(target=background_task, daemon=True).start()
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    socketio.run(app, host="0.0.0.0", port=port)
+if __name__ == '__main__':
+    # Determine port and host for running the app (necessary for Render)
+    port = int(os.environ.get('PORT', 5000))
+    socketio.run(app, host='0.0.0.0', port=port)
