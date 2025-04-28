@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>KaidoServer Live Crypto Prices</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            background-color: #111;
+            color: #eee;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            padding: 40px;
+        }
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        table {
+            width: 50%;
+            margin: 0 auto;
+            border-collapse: collapse;
+            background-color: #222;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+        }
+        th, td {
+            padding: 20px;
+            font-size: 1.2rem;
+        }
+        th {
+            background-color: #333;
+            color: #fff;
+        }
+        tr:nth-child(even) {
+            background-color: #1a1a1a;
+        }
+        tr:hover {
+            background-color: #444;
+        }
+    </style>
+</head>
+<body>
+    <h1>KaidoServer Live Prices</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Crypto</th>
+                <th>Price (USD)</th>
+            </tr>
+        </thead>
+        <tbody id="price-table">
+            <tr><td>BTC</td><td id="BTC">Loading...</td></tr>
+            <tr><td>ETH</td><td id="ETH">Loading...</td></tr>
+            <tr><td>SOL</td><td id="SOL">Loading...</td></tr>
+            <tr><td>DOGE</td><td id="DOGE">Loading...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        const socket = io();
+
+        socket.on('update_prices', function (data) {
+            for (const [symbol, price] of Object.entries(data)) {
+                const priceCell = document.getElementById(symbol);
+                if (priceCell) {
+                    priceCell.textContent = parseFloat(price).toFixed(4);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
