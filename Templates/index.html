@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Kaido Crypto Prices</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script>
+        var socket = io();
+        socket.on('crypto_prices', function(data) {
+            document.getElementById('prices').innerHTML = JSON.stringify(data, null, 2);
+        });
+    </script>
+</head>
+<body>
+    <h1>Live Crypto Prices</h1>
+    <pre id="prices">Loading...</pre>
+</body>
+</html>
