@@ -12,6 +12,9 @@ import threading
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Coinbase API endpoint
+COINBASE_URL = "https://api.coinbase.com/v2/prices/{}-USD/spot"
+
 # Crypto symbols you want to track
 TRACKED_SYMBOLS = ["BTC", "ETH", "SOL", "DOGE", "LTC", "XRP", "ADA", "SHIB"]
 
@@ -20,21 +23,18 @@ live_prices = {}
 def fetch_live_prices():
     """Fetch live prices from Coinbase and update live_prices dict."""
     global live_prices
-    updated_prices = {}
-    for symbol in TRACKED_SYMBOLS:
-        try:
-            url = f"https://api.coinbase.com/v2/prices/{symbol}-USD/spot"
-            response = requests.get(url)
+    try:
+        updated_prices = {}
+        for symbol in TRACKED_SYMBOLS:
+            response = requests.get(COINBASE_URL.format(symbol))
             if response.status_code == 200:
                 data = response.json()
                 price = data["data"]["amount"]
                 updated_prices[symbol] = float(price)
-            else:
-                print(f"Failed to fetch {symbol}: {response.status_code}")
-        except Exception as e:
-            print(f"Error fetching {symbol}: {e}")
-    live_prices = updated_prices
-    socketio.emit('update_prices', live_prices)
+        live_prices = updated_prices
+        socketio.emit('update_prices', live_prices)
+    except Exception as e:
+        print(f"Error fetching prices: {e}")
 
 def background_task():
     """Background task to fetch live prices every 5 seconds."""
