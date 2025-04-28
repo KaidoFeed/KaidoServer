@@ -8,36 +8,50 @@ import requests
 import time
 import threading
 
-# Create the Flask app
+# Create Flask app
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Coinbase API endpoint
-COINBASE_URL = "https://api.coinbase.com/v2/prices/{}-USD/spot"
-
-# Crypto symbols you want to track
+# Cryptos to track
 TRACKED_SYMBOLS = ["BTC", "ETH", "SOL", "DOGE", "LTC", "XRP", "ADA", "SHIB"]
+
+# Mapping for Coinbase API
+COINBASE_MAPPING = {
+    "BTC": "BTC-USD",
+    "ETH": "ETH-USD",
+    "SOL": "SOL-USD",
+    "DOGE": "DOGE-USD",
+    "LTC": "LTC-USD",
+    "XRP": "XRP-USD",
+    "ADA": "ADA-USD",
+    "SHIB": "SHIB-USD",
+}
 
 live_prices = {}
 
 def fetch_live_prices():
-    """Fetch live prices from Coinbase and update live_prices dict."""
+    """Fetch live prices from Coinbase API."""
     global live_prices
-    try:
-        updated_prices = {}
-        for symbol in TRACKED_SYMBOLS:
-            response = requests.get(COINBASE_URL.format(symbol))
+    updated_prices = {}
+
+    for symbol, pair in COINBASE_MAPPING.items():
+        try:
+            url = f"https://api.coinbase.com/v2/prices/{pair}/spot"
+            response = requests.get(url)
             if response.status_code == 200:
-                data = response.json()
-                price = data["data"]["amount"]
-                updated_prices[symbol] = float(price)
-        live_prices = updated_prices
+                price = float(response.json()['data']['amount'])
+                updated_prices[symbol] = price
+            else:
+                print(f"Error fetching {symbol}: {response.status_code}")
+        except Exception as e:
+            print(f"Error fetching {symbol}: {e}")
+
+    if updated_prices:
+        live_prices.update(updated_prices)
         socketio.emit('update_prices', live_prices)
-    except Exception as e:
-        print(f"Error fetching prices: {e}")
 
 def background_task():
-    """Background task to fetch live prices every 5 seconds."""
+    """Background task fetching live prices every 5 seconds."""
     while True:
         fetch_live_prices()
         time.sleep(5)
@@ -46,7 +60,7 @@ def background_task():
 def index():
     return render_template('index.html')
 
-# Start background fetcher
+# Start background fetch
 threading.Thread(target=background_task, daemon=True).start()
 
 if __name__ == "__main__":
