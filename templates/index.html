@@ -3,123 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <title>KaidoServer Live Crypto Dashboard</title>
-    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
     <style>
         body {
-            background-color: #0e0e0e;
-            color: #e0e0e0;
-            font-family: 'Roboto', sans-serif;
+            background-color: #111;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
             margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
+            padding: 20px;
         }
-        h1 {
-            margin-top: 20px;
-            margin-bottom: 10px;
-            font-size: 28px;
-            font-weight: bold;
-        }
+
         table {
             width: 90%;
-            max-width: 1000px;
+            margin: auto;
             border-collapse: collapse;
-            margin-top: 20px;
-            background-color: #161616;
-            border: 1px solid #2a2a2a;
+            background-color: #222;
+            border-radius: 12px;
+            overflow: hidden;
         }
+
         th, td {
             padding: 14px;
             text-align: center;
-            border-bottom: 1px solid #2a2a2a;
+            border-bottom: 1px solid #333;
+            font-size: 1.1em;
         }
+
         th {
-            background-color: #222;
-            font-weight: 600;
-            font-size: 16px;
-            text-transform: uppercase;
+            background-color: #333;
+            color: #fff;
         }
-        tr:hover {
-            background-color: #1d1d1d;
-        }
-        #timestamp {
-            margin-top: 12px;
-            font-size: 12px;
-            color: #888;
-        }
-        td.price {
+
+        td.price-up {
+            color: #4CAF50;
             font-weight: bold;
-            font-size: 18px;
-            transition: color 0.5s ease;
         }
-        .green {
-            color: #4CAF50 !important;
+
+        td.price-down {
+            color: #F44336;
+            font-weight: bold;
         }
-        .red {
-            color: #FF5252 !important;
+
+        small {
+            color: #888;
+            margin-top: 10px;
+            display: block;
         }
     </style>
 </head>
 <body>
-    <h1>KaidoServer Live Crypto Dashboard</h1>
-    <table id="prices-table">
+    <h2>KaidoServer Live Crypto Dashboard</h2>
+
+    <table>
         <thead>
             <tr>
-                <th>Asset</th>
-                <th>Price (USD)</th>
+                <th>ASSET</th>
+                <th>PRICE (USD)</th>
             </tr>
         </thead>
-        <tbody id="prices-body">
-            <!-- Dynamic data goes here -->
+        <tbody>
+            <tr><td>BTC</td><td id="BTC-price">Loading...</td></tr>
+            <tr><td>ETH</td><td id="ETH-price">Loading...</td></tr>
+            <tr><td>SOL</td><td id="SOL-price">Loading...</td></tr>
+            <tr><td>DOGE</td><td id="DOGE-price">Loading...</td></tr>
+            <tr><td>LTC</td><td id="LTC-price">Loading...</td></tr>
+            <tr><td>XRP</td><td id="XRP-price">Loading...</td></tr>
+            <tr><td>ADA</td><td id="ADA-price">Loading...</td></tr>
+            <tr><td>SHIB</td><td id="SHIB-price">Loading...</td></tr>
         </tbody>
     </table>
-    <div id="timestamp">Last update: --</div>
+
+    <small id="last-update">Last update: --</small>
 
     <script>
         const socket = io();
-        const trackedSymbols = ["BTC", "ETH", "SOL", "DOGE", "LTC", "XRP", "ADA", "SHIB"];
         const previousPrices = {};
 
-        const pricesBody = document.getElementById('prices-body');
-        const timestampDiv = document.getElementById('timestamp');
+        socket.on('update_prices', function (data) {
+            for (const symbol in data) {
+                const priceElement = document.getElementById(symbol + '-price');
+                const newPrice = parseFloat(data[symbol]);
 
-        trackedSymbols.forEach(symbol => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${symbol}</td>
-                <td id="price-${symbol}" class="price">Loading...</td>
-            `;
-            pricesBody.appendChild(row);
-        });
+                if (priceElement) {
+                    const prevPrice = previousPrices[symbol];
 
-        socket.on('update_prices', (data) => {
-            trackedSymbols.forEach(symbol => {
-                if (data[symbol] !== undefined) {
-                    const priceCell = document.getElementById(`price-${symbol}`);
-                    const newPrice = parseFloat(data[symbol]);
-                    const formattedPrice = `$${newPrice.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
-
-                    // Determine color based on price movement
-                    if (previousPrices[symbol] !== undefined) {
-                        if (newPrice > previousPrices[symbol]) {
-                            priceCell.classList.add('green');
-                            priceCell.classList.remove('red');
-                        } else if (newPrice < previousPrices[symbol]) {
-                            priceCell.classList.add('red');
-                            priceCell.classList.remove('green');
+                    if (prevPrice !== undefined) {
+                        if (newPrice > prevPrice) {
+                            priceElement.className = 'price-up';
+                        } else if (newPrice < prevPrice) {
+                            priceElement.className = 'price-down';
+                        } else {
+                            priceElement.className = '';
                         }
                     }
 
-                    priceCell.textContent = formattedPrice;
+                    priceElement.textContent = "$" + newPrice.toFixed(4);
                     previousPrices[symbol] = newPrice;
                 }
-            });
+            }
 
-            const now = new Date();
-            timestampDiv.textContent = `Last update: ${now.toLocaleTimeString()}`;
+            const updateTime = new Date().toLocaleTimeString();
+            document.getElementById('last-update').textContent = "Last update: " + updateTime;
         });
     </script>
 </body>
